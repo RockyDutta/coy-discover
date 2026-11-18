@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id        String   @id
+  name      String
+  age       Int
+  photoUrl  String
+  bio       String
+  city      String
+  interests String
+  createdAt DateTime @default(now())
+
+  swipesSent     Swipe[] @relation("SwipesSent")
+  swipesReceived Swipe[] @relation("SwipesReceived")
+  matchesAsA     Match[] @relation("MatchesAsA")
+  matchesAsB     Match[] @relation("MatchesAsB")
+}
+
+model Swipe {
+  id        String   @id @default(cuid())
+  fromId    String
+  toId      String
+  isLike    Boolean
+  createdAt DateTime @default(now())
+
+  from Profile @relation("SwipesSent", fields: [fromId], references: [id], onDelete: Cascade)
+  to   Profile @relation("SwipesReceived", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@unique([fromId, toId])
+}
+
+model Match {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+
+  userA Profile @relation("MatchesAsA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB Profile @relation("MatchesAsB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+}
