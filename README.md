@@ -1,84 +1,172 @@
-# Coy Discover Tab (Part B - SDE Intern Assignment)
+# Coy Discover Tab
 
-A standalone swipe-based Discover feature built for the Coy SDE Intern Assignment. Designed mobile-first with smooth gestures, privacy-first mutual matching, and persistent SQLite storage.
-
----
-
-## 🚀 Features
-
-- **Profile Data**: 32 diverse seeded mock profiles with photo, name, age, city/college, bio, and interest tags.
-- **Swipe Experience**:
-  - Drag gestures on mobile and touch screens with dynamic `LIKE` (green) and `PASS` (red) visual stamps.
-  - Dedicated desktop action buttons (Pass ✕ and Like ♥).
-  - Smooth card animations and exit transitions using **Framer Motion**.
-  - Swiped profiles never appear again.
-  - Informative empty state when all profiles have been swiped.
-- **Matching & Privacy Rules**:
-  - Mutual matching: A match happens **only** when both users have liked each other.
-  - Never reveals who has liked the user unless it is mutual.
-  - "It's a Match!" celebration modal appears immediately on mutual like.
-  - Dedicated **Matches View** listing all mutual connections.
-- **Tab Bar**:
-  - Bottom navigation bar with placeholder **Home** tab and functional **Discover** tab.
-- **Backend APIs**:
-  - `GET /feed`: Returns profiles not yet swiped on by the user, ordered by `id`. Excludes `'me'`.
-  - `POST /swipe`: Records a like or pass and returns whether it created a match (`{ isMatch: boolean, matchedProfile?: ... }`). Atomic transaction.
-  - `GET /matches`: Returns all mutual matches for the user.
-  - All swipes and matches persist across page reloads.
+Coy Discover is a mobile-first swipe discovery feature built for the Coy SDE Intern Assignment. It allows users to browse profiles, swipe left to pass, or swipe right to like, with mutual matches revealed only when both users have liked each other. The core promise of privacy is enforced at every layer: incoming likes are never exposed until a mutual connection is made.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 16 (App Router) with TypeScript & React 19
+- **Framework**: Next.js 16 (App Router) & React 19
+- **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **Animations**: Framer Motion
-- **Database & ORM**: SQLite via Prisma ORM
-- **Testing**: Vitest for backend service integration tests
+- **Database & ORM**: SQLite with Prisma ORM
+- **Testing**: Vitest
 
 ---
 
-## 📦 Getting Started
+## 🚀 Setup for a Clean Clone
 
-### 1. Install Dependencies
+Clone the repository and run the following commands:
+
 ```bash
+# 1. Install dependencies
 npm install
+
+# 2. Copy the environment variables
+cp .env.example .env
+# Windows PowerShell: Copy-Item .env.example .env
+# Windows CMD: copy .env.example .env
+
+# 3. Apply database migrations
+npx prisma migrate dev
+
+# 4. Seed database with mock profiles and demo likes
+npm run db:seed
+
+# 5. Start the development server
+npm run dev
 ```
 
-### 2. Set Up Environment Variables
-Create a `.env` file in the root directory (or copy from `.env.example`):
-```env
-DATABASE_URL="file:./dev.db"
-```
+Open [http://localhost:3000](http://localhost:3000) in your browser. Navigating to `/` automatically redirects to `/discover`.
 
-### 3. Initialize Database Schema
-```bash
-npx prisma db push
-```
+---
 
-### 4. Seed Mock Profiles & Demo Likes
-```bash
-npx prisma db seed
-```
-> *Seeded incoming likes to `'me'` from `p02`, `p05`, `p09`, `p14`, `p19`, `p24`, and `p28` to demonstrate live mutual matches during testing.*
+## 📡 API Endpoints
 
-### 5. Run Backend Tests
+### 1. `GET /feed`
+Returns candidate profiles that the logged-in user (`me`) has not yet swiped on, ordered strictly by profile `id` ascending. Excludes the current user.
+
+* **Request**:
+  ```http
+  GET /feed
+  ```
+* **Response** (`200 OK`):
+  ```json
+  {
+    "profiles": [
+      {
+        "id": "p01",
+        "name": "Aarav",
+        "age": 21,
+        "photoUrl": "https://picsum.photos/seed/p01/600/800",
+        "bio": "Hello! I am Aarav, a 21-year-old from Delhi.",
+        "city": "IIT Bombay",
+        "interests": ["travel", "art", "technology", "cooking", "photography"]
+      }
+    ]
+  }
+  ```
+
+---
+
+### 2. `POST /swipe`
+Records a swipe action (`LIKE` or `PASS`) on the specified profile.
+
+* **Request**:
+  ```http
+  POST /swipe
+  Content-Type: application/json
+
+  {
+    "profileId": "p04",
+    "action": "LIKE"
+  }
+  ```
+* **Response – When not a mutual match** (`200 OK`):
+  ```json
+  {
+    "success": true,
+    "isMatch": false,
+    "message": "Swipe recorded"
+  }
+  ```
+* **Response – When a mutual match occurs** (`200 OK`):
+  ```json
+  {
+    "success": true,
+    "isMatch": true,
+    "message": "It's a match!"
+  }
+  ```
+* **Error Safeguards**:
+  * `400 Bad Request`: Invalid action (must be exactly `LIKE` or `PASS`) or swiping on oneself.
+  * `404 Not Found`: Target profile does not exist.
+  * `409 Conflict`: Target profile was already swiped.
+
+---
+
+### 3. `GET /matches`
+Returns the public profile details of all mutual matches involving the current user.
+
+* **Request**:
+  ```http
+  GET /matches
+  ```
+* **Response** (`200 OK`):
+  ```json
+  {
+    "matches": [
+      {
+        "id": "p04",
+        "name": "Sneha",
+        "age": 24,
+        "photoUrl": "https://picsum.photos/seed/p04/600/800",
+        "bio": "Hello! I am Sneha, a 24-year-old from Delhi.",
+        "city": "Delhi",
+        "interests": ["movies", "cooking", "travel", "photography"]
+      }
+    ]
+  }
+  ```
+
+---
+
+## 🎯 Demo Notes for Reviewer
+
+The database is seeded with 32 mock profiles (`p01`–`p32`) and 6 pre-existing incoming likes directed to the logged-in demo user (`me`):
+
+| Profile ID | Name | Seeded Action to 'me' |
+|:---:|:---:|:---:|
+| `p04` | Sneha | `LIKE` |
+| `p09` | Arjun | `LIKE` |
+| `p15` | Dev | `LIKE` |
+| `p21` | Jai | `LIKE` |
+| `p26` | Samir | `LIKE` |
+| `p30` | Kiran | `LIKE` |
+
+> **Important**: This information is provided strictly for reviewer testing so you can trigger a match (e.g. liking `p04`). The application UI and backend responses never reveal incoming likes to the user until a mutual match occurs.
+
+---
+
+## 🧪 Running Tests
+
+The test suite covers backend logic, service boundaries, atomic transactions, and concurrency safeguards:
+
 ```bash
 npm test
 ```
 
-### 6. Start the Development Server
+To run TypeScript verification:
 ```bash
-npm run dev
+npx tsc --noEmit
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+To run lint checks:
+```bash
+npm run lint
+```
 
 ---
 
-## 🧪 Testing Guidelines
-
-1. **Feed Order & Fields**: Run `npm test` to verify that the feed excludes `'me'`, is ordered strictly by `id`, and returns only the 7 allowed profile fields (`id, name, age, photoUrl, bio, city, interests`).
-2. **Mutual Match Demo**: In the web UI, swiping right (Like) on **Rohan Mehta** (`p02`) or **Aria Sharma** (`p05`) triggers the **"It's a Match!"** screen. Swiping right on profiles who have not liked you records the like quietly without triggering a match.
-3. **Matches View**: Toggle the **Matches** view in the top header or click **View Matches** in the match modal to see mutual connections.
-4. **Persistence**: Refresh the page to verify that swipes and matches remain persisted in SQLite.
+## 🔒 Git Security Check
+Both `.env` and SQLite database files (`*.db`, `*.db-journal`, `dev.db`, `test.db`) are ignored in `.gitignore` and are not committed to the repository.
