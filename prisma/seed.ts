@@ -1,4 +1,5 @@
 import prisma from "../lib/db";
+import { Prisma } from "@prisma/client";
 
 /**
  * Seed script for the Coy Discover app.
@@ -64,7 +65,7 @@ async function main() {
   // ---------------------------------------------------------------------
   // 4️⃣  Generate 32 mock profiles (p01‑p32)
   // ---------------------------------------------------------------------
-  const profiles: Parameters<typeof prisma.profile.createMany>[0]["data"] = [];
+  const profiles: Prisma.ProfileCreateManyInput[] = [];
   for (let i = 1; i <= 32; i++) {
     const id = `p${i.toString().padStart(2, "0")}`;
     const name = firstNames[i - 1];
