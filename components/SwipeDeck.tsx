@@ -5,11 +5,13 @@ import { FeedProfile } from "@/lib/types";
 import { getFeed, postSwipe } from "@/lib/api";
 import ProfileCard from "./ProfileCard";
 import EmptyState from "./EmptyState";
+import MatchModal from "./MatchModal";
 
 export default function SwipeDeck() {
   const [profiles, setProfiles] = useState<FeedProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSwiping, setIsSwiping] = useState(false);
+  const [matchedProfile, setMatchedProfile] = useState<FeedProfile | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -36,16 +38,22 @@ export default function SwipeDeck() {
   }, []);
 
   const handleSwipe = async (action: "LIKE" | "PASS") => {
-    // Ignore extra taps while a request is already running or if no profiles left
+    // Ignore extra taps while a request is running or if no profiles left
     if (isSwiping || profiles.length === 0) return;
 
     const currentProfile = profiles[0];
     setIsSwiping(true);
 
     try {
-      // Call postSwipe and only after it succeeds, remove that profile from list
-      await postSwipe(currentProfile.id, action);
+      const res = await postSwipe(currentProfile.id, action);
+
+      // Only after it succeeds removes that profile from the list and shows the next one
       setProfiles((prev) => prev.slice(1));
+
+      // Show modal only when postSwipe returns isMatch true. Show nothing special when isMatch is false.
+      if (res.isMatch) {
+        setMatchedProfile(currentProfile);
+      }
     } catch (error) {
       console.error("Swipe failed:", error);
     } finally {
@@ -65,7 +73,16 @@ export default function SwipeDeck() {
   }
 
   if (profiles.length === 0) {
-    return <EmptyState />;
+    return (
+      <>
+        <EmptyState />
+        {/* Match modal if last swipe was a match */}
+        <MatchModal
+          profile={matchedProfile}
+          onClose={() => setMatchedProfile(null)}
+        />
+      </>
+    );
   }
 
   const currentProfile = profiles[0];
@@ -109,6 +126,12 @@ export default function SwipeDeck() {
           </svg>
         </button>
       </div>
+
+      {/* Match Modal */}
+      <MatchModal
+        profile={matchedProfile}
+        onClose={() => setMatchedProfile(null)}
+      />
     </div>
   );
 }
