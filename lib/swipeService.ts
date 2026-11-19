@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma } from "./db";
 import { CURRENT_USER_ID } from "./constants";
 import { formatProfile } from "./formatProfile";
 import { SwipeResponse } from "./types";
@@ -11,6 +11,8 @@ export async function recordSwipe(
     throw new Error("Invalid target profile");
   }
 
+  const action = isLike ? "LIKE" : "PASS";
+
   return await prisma.$transaction(async (tx) => {
     // 1. Record the swipe from logged-in user ('me') to target profile
     await tx.swipe.upsert({
@@ -21,12 +23,12 @@ export async function recordSwipe(
         },
       },
       update: {
-        isLike,
+        action,
       },
       create: {
         fromId: CURRENT_USER_ID,
         toId: targetId,
-        isLike,
+        action,
       },
     });
 
@@ -45,7 +47,7 @@ export async function recordSwipe(
       },
     });
 
-    if (targetSwipe && targetSwipe.isLike) {
+    if (targetSwipe && targetSwipe.action === "LIKE") {
       // Rule 3: Match is unique on (userAId, userBId) with the smaller id first
       const userAId = CURRENT_USER_ID < targetId ? CURRENT_USER_ID : targetId;
       const userBId = CURRENT_USER_ID < targetId ? targetId : CURRENT_USER_ID;

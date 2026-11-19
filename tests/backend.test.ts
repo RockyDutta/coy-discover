@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../lib/db";
 import { CURRENT_USER_ID } from "../lib/constants";
 import { getFeed } from "../lib/feedService";
 import { recordSwipe } from "../lib/swipeService";
@@ -33,6 +33,7 @@ describe("Coy Discover Backend Services & Business Rules", () => {
         bio: "Test bio for me",
         city: "Stanford",
         interests: JSON.stringify(["Tech", "Coffee"]),
+        isDemoUser: true,
       },
     });
 
@@ -47,6 +48,7 @@ describe("Coy Discover Backend Services & Business Rules", () => {
           bio: "Bio 1",
           city: "NYC",
           interests: JSON.stringify(["Art", "Design"]),
+          isDemoUser: false,
         },
         {
           id: "p2",
@@ -56,6 +58,7 @@ describe("Coy Discover Backend Services & Business Rules", () => {
           bio: "Bio 2",
           city: "SF",
           interests: JSON.stringify(["Music"]),
+          isDemoUser: false,
         },
         {
           id: "p3",
@@ -65,6 +68,7 @@ describe("Coy Discover Backend Services & Business Rules", () => {
           bio: "Bio 3",
           city: "Austin",
           interests: JSON.stringify(["Running"]),
+          isDemoUser: false,
         },
       ],
     });
@@ -80,7 +84,7 @@ describe("Coy Discover Backend Services & Business Rules", () => {
       data: {
         fromId: "p2",
         toId: CURRENT_USER_ID,
-        isLike: true,
+        action: "LIKE",
       },
     });
 
@@ -102,7 +106,7 @@ describe("Coy Discover Backend Services & Business Rules", () => {
       expect(Array.isArray(item.interests)).toBe(true);
       // Must never return swipe rows or who liked the user
       expect((item as unknown as Record<string, unknown>).hasLikedMe).toBeUndefined();
-      expect((item as unknown as Record<string, unknown>).isLike).toBeUndefined();
+      expect((item as unknown as Record<string, unknown>).action).toBeUndefined();
     }
   });
 
@@ -129,7 +133,7 @@ describe("Coy Discover Backend Services & Business Rules", () => {
       data: {
         fromId: "p2",
         toId: CURRENT_USER_ID,
-        isLike: true,
+        action: "LIKE",
       },
     });
 
@@ -161,7 +165,7 @@ describe("Coy Discover Backend Services & Business Rules", () => {
       data: {
         fromId: "p3",
         toId: CURRENT_USER_ID,
-        isLike: true,
+        action: "LIKE",
       },
     });
 

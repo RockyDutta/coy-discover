@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/db";
 import { CURRENT_USER_ID } from "../lib/constants";
-
-const prisma = new PrismaClient();
 
 async function main() {
   console.log("Seeding database...");
@@ -21,6 +19,7 @@ async function main() {
       bio: "Tech explorer, specialty coffee lover, and weekend hiker.",
       city: "Stanford University",
       interests: JSON.stringify(["Photography", "Coffee", "Design", "Tech", "Hiking"]),
+      isDemoUser: true,
     },
   });
 
@@ -326,23 +325,24 @@ async function main() {
         bio: p.bio,
         city: p.city,
         interests: JSON.stringify(p.interests),
+        isDemoUser: false,
       },
     });
   }
 
-  // 3. Seed likes from some profiles to 'me'
+  // 3. Seed incoming LIKEs from some profiles to 'me'
   const seededLikes = ["p02", "p05", "p09", "p14", "p19", "p24", "p28"];
   for (const fromId of seededLikes) {
     await prisma.swipe.create({
       data: {
         fromId,
         toId: CURRENT_USER_ID,
-        isLike: true,
+        action: "LIKE",
       },
     });
   }
 
-  console.log(`Seeded 1 logged-in user ('me') and ${profiles.length} mock profiles.`);
+  console.log(`Seeded 1 demo user ('me') and ${profiles.length} mock profiles.`);
   console.log(`Seeded ${seededLikes.length} incoming likes to '${CURRENT_USER_ID}' (${seededLikes.join(", ")}).`);
 }
 
