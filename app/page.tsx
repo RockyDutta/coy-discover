@@ -28,7 +28,7 @@ export default function App() {
       const res = await fetch("/feed");
       if (res.ok) {
         const data = await res.json();
-        setFeed(data);
+        setFeed(Array.isArray(data) ? data : data.profiles ?? []);
       }
     } catch (err) {
       console.error("Failed to load feed", err);
@@ -44,7 +44,7 @@ export default function App() {
       const res = await fetch("/matches");
       if (res.ok) {
         const data = await res.json();
-        setMatches(data);
+        setMatches(Array.isArray(data) ? data : data.matches ?? []);
       }
     } catch (err) {
       console.error("Failed to load matches", err);
@@ -71,6 +71,8 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          profileId: currentProfile.id,
+          action: isLike ? "LIKE" : "PASS",
           targetId: currentProfile.id,
           isLike,
         }),

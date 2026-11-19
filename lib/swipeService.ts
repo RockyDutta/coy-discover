@@ -35,73 +35,80 @@ export async function recordSwipe(
     throw new BadRequestError("Cannot swipe on yourself");
   }
 
-  return await prisma.$transaction(async (tx) => {
-    // 1️⃣ Verify the profile exists
-    const targetProfile = await tx.profile.findUnique({
-      where: { id: profileId },
-      select: { id: true },
-    });
-    if (!targetProfile) {
-      throw new NotFoundError(`Profile '${profileId}' not found`);
-    }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // 1️⃣ Verify the profile exists
+      const targetProfile = await tx.profile.findUnique({
+        where: { id: profileId },
+        select: { id: true },
+      });
+      if (!targetProfile) {
+        throw new NotFoundError(`Profile '${profileId}' not found`);
+      }
 
-    // 2️⃣ Ensure we haven't already swiped this profile
-    const existingSwipe = await tx.swipe.findUnique({
-      where: {
-        fromId_toId: {
+      // 2️⃣ Ensure we haven't already swiped this profile
+      const existingSwipe = await tx.swipe.findUnique({
+        where: {
+          fromId_toId: {
+            fromId: CURRENT_USER_ID,
+            toId: profileId,
+          },
+        },
+      });
+      if (existingSwipe) {
+        throw new ConflictError(`Already swiped on profile '${profileId}'`);
+      }
+
+      // 3️⃣ Persist the swipe
+      await tx.swipe.create({
+        data: {
           fromId: CURRENT_USER_ID,
           toId: profileId,
+          action,
         },
-      },
+      });
+
+      // PASS cannot create a match
+      if (action === "PASS") {
+        return { isMatch: false };
+      }
+
+      // 4️⃣ For LIKE, check if the opposite direction already has a LIKE
+      const incoming = await tx.swipe.findUnique({
+        where: {
+          fromId_toId: {
+            fromId: profileId,
+            toId: CURRENT_USER_ID,
+          },
+        },
+      });
+
+      if (incoming && incoming.action === "LIKE") {
+        // Order IDs so the lexicographically smaller one is userAId
+        const userAId = CURRENT_USER_ID < profileId ? CURRENT_USER_ID : profileId;
+        const userBId = CURRENT_USER_ID < profileId ? profileId : CURRENT_USER_ID;
+
+        await tx.match.create({
+          data: { userAId, userBId },
+        });
+
+        const matchedProfile = await tx.profile.findUnique({
+          where: { id: profileId },
+        });
+
+        return {
+          isMatch: true,
+          matchedProfile: matchedProfile ? formatProfile(matchedProfile) : undefined,
+        };
+      }
+
+      // No mutual like → no match
+      return { isMatch: false };
     });
-    if (existingSwipe) {
+  } catch (error: unknown) {
+    if ((error as { code?: string })?.code === "P2002") {
       throw new ConflictError(`Already swiped on profile '${profileId}'`);
     }
-
-    // 3️⃣ Persist the swipe
-    await tx.swipe.create({
-      data: {
-        fromId: CURRENT_USER_ID,
-        toId: profileId,
-        action,
-      },
-    });
-
-    // PASS cannot create a match
-    if (action === "PASS") {
-      return { isMatch: false };
-    }
-
-    // 4️⃣ For LIKE, check if the opposite direction already has a LIKE
-    const incoming = await tx.swipe.findUnique({
-      where: {
-        fromId_toId: {
-          fromId: profileId,
-          toId: CURRENT_USER_ID,
-        },
-      },
-    });
-
-    if (incoming && incoming.action === "LIKE") {
-      // Order IDs so the lexicographically smaller one is userAId
-      const userAId = CURRENT_USER_ID < profileId ? CURRENT_USER_ID : profileId;
-      const userBId = CURRENT_USER_ID < profileId ? profileId : CURRENT_USER_ID;
-
-      await tx.match.create({
-        data: { userAId, userBId },
-      });
-
-      const matchedProfile = await tx.profile.findUnique({
-        where: { id: profileId },
-      });
-
-      return {
-        isMatch: true,
-        matchedProfile: matchedProfile ? formatProfile(matchedProfile) : undefined,
-      };
-    }
-
-    // No mutual like → no match
-    return { isMatch: false };
-  });
+    throw error;
+  }
 }

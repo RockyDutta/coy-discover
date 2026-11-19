@@ -1,0 +1,78 @@
+### Variables
+@baseUrl = http://localhost:3000
+
+### 1. Get the feed
+GET {{baseUrl}}/feed
+Accept: application/json
+
+###
+
+### 2. Pass a profile (e.g. p01)
+POST {{baseUrl}}/swipe
+Content-Type: application/json
+
+{
+  "profileId": "p01",
+  "action": "PASS"
+}
+
+###
+
+### 3. Like a profile that has not liked me (e.g. p02)
+POST {{baseUrl}}/swipe
+Content-Type: application/json
+
+{
+  "profileId": "p02",
+  "action": "LIKE"
+}
+
+###
+
+### 4. Like p04 (which has liked me -> mutual match!)
+POST {{baseUrl}}/swipe
+Content-Type: application/json
+
+{
+  "profileId": "p04",
+  "action": "LIKE"
+}
+
+###
+
+### 5. Repeat a swipe (p04 already swiped -> 409 Conflict)
+POST {{baseUrl}}/swipe
+Content-Type: application/json
+
+{
+  "profileId": "p04",
+  "action": "LIKE"
+}
+
+###
+
+### 6. Send an invalid action (SUPERLIKE -> 400 Bad Request)
+POST {{baseUrl}}/swipe
+Content-Type: application/json
+
+{
+  "profileId": "p03",
+  "action": "SUPERLIKE"
+}
+
+###
+
+### 7. Send an unknown profileId (unknown999 -> 404 Not Found)
+POST {{baseUrl}}/swipe
+Content-Type: application/json
+
+{
+  "profileId": "unknown999",
+  "action": "LIKE"
+}
+
+###
+
+### 8. Get the matches (should include p04)
+GET {{baseUrl}}/matches
+Accept: application/json
