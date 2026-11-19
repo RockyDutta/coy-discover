@@ -1,1 +1,0 @@
-export { getMatches } from "./matchService";

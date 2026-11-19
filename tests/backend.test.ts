@@ -3,7 +3,7 @@ import { prisma } from "../lib/db";
 import { CURRENT_USER_ID } from "../lib/constants";
 import { getFeed } from "../lib/feedService";
 import { recordSwipe } from "../lib/swipeService";
-import { getMatches } from "../lib/matchesService";
+import { getMatches } from "../lib/matchService";
 import { BadRequestError, NotFoundError, ConflictError } from "../lib/types";
 
 describe("Coy Discover Backend Services & Business Rules", () => {

@@ -12,9 +12,6 @@
     "pretest": "prisma db push",
     "test": "vitest run"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@prisma/client": "^6.4.1",
     "dotenv": "^16.4.7",

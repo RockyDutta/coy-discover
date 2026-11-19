@@ -4,44 +4,45 @@ Coy Discover is a mobile-first swipe discovery feature built for the Coy SDE Int
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-- **Framework**: Next.js 16 (App Router) & React 19
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Database & ORM**: SQLite with Prisma ORM
+- **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS, Framer Motion
+- **Backend**: Next.js Route Handlers
+- **Database**: SQLite with Prisma ORM
 - **Testing**: Vitest
 
 ---
 
-## 🚀 Setup for a Clean Clone
+## Getting Started
 
-Clone the repository and run the following commands:
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-```bash
-# 1. Install dependencies
-npm install
+2. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # On Windows CMD: copy .env.example .env
+   # On PowerShell: Copy-Item .env.example .env
+   ```
 
-# 2. Copy the environment variables
-cp .env.example .env
-# Windows PowerShell: Copy-Item .env.example .env
-# Windows CMD: copy .env.example .env
+3. Initialize database and seed mock data:
+   ```bash
+   npx prisma migrate dev
+   npm run db:seed
+   ```
 
-# 3. Apply database migrations
-npx prisma migrate dev
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-# 4. Seed database with mock profiles and demo likes
-npm run db:seed
-
-# 5. Start the development server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser. Navigating to `/` automatically redirects to `/discover`.
+Open [http://localhost:3000](http://localhost:3000) (visiting `/` redirects to `/discover`).
 
 ---
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### 1. `GET /feed`
 Returns candidate profiles that the logged-in user (`me`) has not yet swiped on, ordered strictly by profile `id` ascending. Excludes the current user.
@@ -131,11 +132,11 @@ Returns the public profile details of all mutual matches involving the current u
 
 ---
 
-## 🎯 Demo Notes for Reviewer
+## Reviewer Notes (Seeded Likes)
 
-The database is seeded with 32 mock profiles (`p01`–`p32`) and 6 pre-existing incoming likes directed to the logged-in demo user (`me`):
+The database is seeded with 32 mock profiles (`p01`–`p32`) and 6 profiles that have already liked `me`:
 
-| Profile ID | Name | Seeded Action to 'me' |
+| Profile ID | Name | Seeded Action |
 |:---:|:---:|:---:|
 | `p04` | Sneha | `LIKE` |
 | `p09` | Arjun | `LIKE` |
@@ -144,29 +145,23 @@ The database is seeded with 32 mock profiles (`p01`–`p32`) and 6 pre-existing 
 | `p26` | Samir | `LIKE` |
 | `p30` | Kiran | `LIKE` |
 
-> **Important**: This information is provided strictly for reviewer testing so you can trigger a match (e.g. liking `p04`). The application UI and backend responses never reveal incoming likes to the user until a mutual match occurs.
+*Note: This information is strictly for testing matches (e.g. liking `p04`). The application UI and APIs never expose incoming likes until a mutual match occurs.*
 
 ---
 
-## 🧪 Running Tests
+## Running Tests
 
-The test suite covers backend logic, service boundaries, atomic transactions, and concurrency safeguards:
-
+Run the Vitest test suite:
 ```bash
 npm test
 ```
 
-To run TypeScript verification:
-```bash
-npx tsc --noEmit
-```
-
-To run lint checks:
+To run linting:
 ```bash
 npm run lint
 ```
 
 ---
 
-## 🔒 Git Security Check
-Both `.env` and SQLite database files (`*.db`, `*.db-journal`, `dev.db`, `test.db`) are ignored in `.gitignore` and are not committed to the repository.
+## Database & Security
+`.env` and SQLite database files (`*.db`, `*.db-journal`, `dev.db`, `test.db`) are excluded in `.gitignore` and are not committed.
