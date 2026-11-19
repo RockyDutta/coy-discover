@@ -1,4 +1,4 @@
-import { SafeProfile } from "./types";
+import { FeedProfile } from "./types";
 
 interface DbProfile {
   id: string;
@@ -11,7 +11,7 @@ interface DbProfile {
   [key: string]: unknown;
 }
 
-export function formatProfile(profile: DbProfile): SafeProfile {
+export function formatProfile(profile: DbProfile): FeedProfile {
   let parsedInterests: string[] = [];
   try {
     const parsed = JSON.parse(profile.interests);

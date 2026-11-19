@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "pretest": "prisma db push",
     "test": "vitest run"
   },
   "prisma": {

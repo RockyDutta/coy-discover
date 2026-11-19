@@ -4,10 +4,49 @@ import { CURRENT_USER_ID } from "../lib/constants";
 import { getFeed } from "../lib/feedService";
 import { recordSwipe } from "../lib/swipeService";
 import { getMatches } from "../lib/matchesService";
+import { BadRequestError, NotFoundError, ConflictError } from "../lib/types";
 
 describe("Coy Discover Backend Services & Business Rules", () => {
   beforeAll(async () => {
-    // Ensure clean state before tests
+    // Ensure tables exist in the test database
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Profile" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "age" INTEGER NOT NULL,
+        "photoUrl" TEXT NOT NULL,
+        "bio" TEXT NOT NULL,
+        "city" TEXT NOT NULL,
+        "interests" TEXT NOT NULL,
+        "isDemoUser" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Swipe" (
+        "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        "fromId" TEXT NOT NULL,
+        "toId" TEXT NOT NULL,
+        "action" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Swipe_fromId_fkey" FOREIGN KEY ("fromId") REFERENCES "Profile" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "Swipe_toId_fkey" FOREIGN KEY ("toId") REFERENCES "Profile" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Match" (
+        "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        "userAId" TEXT NOT NULL,
+        "userBId" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Match_userAId_fkey" FOREIGN KEY ("userAId") REFERENCES "Profile" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "Match_userBId_fkey" FOREIGN KEY ("userBId") REFERENCES "Profile" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+    `);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Swipe_fromId_toId_key" ON "Swipe"("fromId", "toId");`);
+    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Match_userAId_userBId_key" ON "Match"("userAId", "userBId");`);
+
+    // Clean tables before running test suite
     await prisma.match.deleteMany();
     await prisma.swipe.deleteMany();
     await prisma.profile.deleteMany();
@@ -175,5 +214,22 @@ describe("Coy Discover Backend Services & Business Rules", () => {
 
     const matches = await getMatches();
     expect(matches.length).toBe(0);
+  });
+
+  it("Error handling: rejects invalid actions, non-existent profiles, and duplicate swipes", async () => {
+    // Reject invalid action
+    await expect(recordSwipe("p1", "SUPERLIKE" as unknown as "LIKE")).rejects.toThrow(BadRequestError);
+
+    // Reject non-existent profile
+    await expect(recordSwipe("non_existent_id", "LIKE")).rejects.toThrow(NotFoundError);
+
+    // Reject swiping on oneself
+    await expect(recordSwipe(CURRENT_USER_ID, "LIKE")).rejects.toThrow(BadRequestError);
+
+    // Record a valid swipe with string "LIKE"
+    await recordSwipe("p1", "LIKE");
+
+    // Reject duplicate swipe on same profile
+    await expect(recordSwipe("p1", "PASS")).rejects.toThrow(ConflictError);
   });
 });

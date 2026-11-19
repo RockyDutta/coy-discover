@@ -64,7 +64,7 @@ async function main() {
   // ---------------------------------------------------------------------
   // 4️⃣  Generate 32 mock profiles (p01‑p32)
   // ---------------------------------------------------------------------
-  const profiles = [] as any[];
+  const profiles: Parameters<typeof prisma.profile.createMany>[0]["data"] = [];
   for (let i = 1; i <= 32; i++) {
     const id = `p${i.toString().padStart(2, "0")}`;
     const name = firstNames[i - 1];
@@ -73,7 +73,7 @@ async function main() {
     const bio = `Hello! I am ${name}, a ${age}‑year‑old from ${randomItem(citiesOrColleges)}.`;
     const city = randomItem(citiesOrColleges);
     const interestsCount = 3 + Math.floor(Math.random() * 3); // 3‑5 interests
-    const interests = [];
+    const interests: string[] = [];
     while (interests.length < interestsCount) {
       const int = randomItem(interestsPool);
       if (!interests.includes(int)) interests.push(int);
