@@ -2,22 +2,11 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-function createPrismaClient(): PrismaClient {
-  const url = process.env.DATABASE_URL || "file:./dev.db";
-
-  // try the better-sqlite3 adapter first; fall back to the default engine if not installed
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
-    const adapter = new PrismaBetterSqlite3({ url });
-    return new PrismaClient({ adapter });
-  } catch {
-    return new PrismaClient();
-  }
-}
-
-// reuse the same instance across Next.js hot reloads
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+  });
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
