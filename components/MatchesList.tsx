@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,7 +12,6 @@ export default function MatchesList() {
   // Load fresh data every time this view opens
   useEffect(() => {
     let mounted = true;
-    setIsLoading(true);
 
     getMatches()
       .then((data) => {
