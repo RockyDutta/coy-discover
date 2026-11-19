@@ -18,17 +18,10 @@ export async function POST(request: NextRequest) {
 
     const action =
       body.action ??
-      (typeof body.isLike === "boolean"
-        ? body.isLike
-          ? "LIKE"
-          : "PASS"
-        : undefined);
+      (typeof body.isLike === "boolean" ? (body.isLike ? "LIKE" : "PASS") : undefined);
 
     if (action !== "LIKE" && action !== "PASS") {
-      return NextResponse.json(
-        { error: "Action must be exactly 'LIKE' or 'PASS'" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Action must be exactly 'LIKE' or 'PASS'" }, { status: 400 });
     }
 
     const result = await recordSwipe(profileId, action);
@@ -39,28 +32,19 @@ export async function POST(request: NextRequest) {
       message: result.isMatch ? "It's a match!" : "Swipe recorded",
       ...(result.matchedProfile ? { matchedProfile: result.matchedProfile } : {}),
     });
-  } catch (error: unknown) {
-    if (error instanceof BadRequestError || (error as { status?: number })?.status === 400) {
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Bad Request" },
-        { status: 400 }
-      );
+  } catch (err: unknown) {
+    if (err instanceof BadRequestError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
-    if (error instanceof NotFoundError || (error as { status?: number })?.status === 404) {
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Not Found" },
-        { status: 404 }
-      );
+    if (err instanceof NotFoundError) {
+      return NextResponse.json({ error: err.message }, { status: 404 });
     }
-    if (error instanceof ConflictError || (error as { status?: number })?.status === 409) {
-      return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Conflict" },
-        { status: 409 }
-      );
+    if (err instanceof ConflictError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
     }
-    console.error("POST /swipe error:", error);
+    console.error("POST /swipe error:", err);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal Server Error" },
+      { error: err instanceof Error ? err.message : "Internal Server Error" },
       { status: 500 }
     );
   }

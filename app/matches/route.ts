@@ -7,10 +7,10 @@ export async function GET() {
   try {
     const matches = await getMatches();
     return NextResponse.json({ matches });
-  } catch (error: unknown) {
-    console.error("GET /matches error:", error);
+  } catch (err: unknown) {
+    console.error("GET /matches error:", err);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal Server Error" },
+      { error: err instanceof Error ? err.message : "Internal Server Error" },
       { status: 500 }
     );
   }

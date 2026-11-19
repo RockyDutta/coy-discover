@@ -1,29 +1,35 @@
 import prisma from "../lib/db";
 import { Prisma } from "@prisma/client";
 
-/**
- * Seed script for the Coy Discover app.
- *
- * - Clears existing Swipe, Match, and Profile tables.
- * - Inserts the logged‑in demo user (`me`).
- * - Inserts 32 mock profiles (`p01`‑`p32`).
- * - Inserts six incoming likes (Swipe rows) pointing to `me`.
- * - Prints a short summary.
- *
- * Run with: `npx tsx prisma/seed.ts`
- */
+const names = [
+  "Aarav", "Diya", "Rohan", "Sneha", "Vihaan", "Isha", "Kunal", "Meera",
+  "Arjun", "Priya", "Sahil", "Tara", "Yash", "Ananya", "Dev", "Nisha",
+  "Riya", "Kartik", "Maya", "Aditi", "Jai", "Lakshmi", "Neil", "Pooja",
+  "Rhea", "Samir", "Zara", "Ishaan", "Shreya", "Kiran", "Vikram", "Lina",
+];
+
+const locations = [
+  "Delhi", "Mumbai", "Kolkata", "Hyderabad", "Chennai",
+  "IIT Delhi", "IIT Bombay", "IIT Madras", "NIT Trichy", "BITS Pilani",
+  "Ahmedabad", "Pune", "Bengaluru", "Jaipur",
+];
+
+const allInterests = [
+  "music", "sports", "travel", "cooking", "photography",
+  "reading", "gaming", "movies", "art", "technology",
+];
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
 async function main() {
-  // ---------------------------------------------------------------------
-  // 1️⃣  Clean existing data (safe to run repeatedly)
-  // ---------------------------------------------------------------------
+  // wipe existing data so the seed is idempotent
   await prisma.swipe.deleteMany();
   await prisma.match.deleteMany();
   await prisma.profile.deleteMany();
 
-  // ---------------------------------------------------------------------
-  // 2️⃣  Create the logged‑in demo user
-  // ---------------------------------------------------------------------
+  // the demo logged-in user
   await prisma.profile.create({
     data: {
       id: "me",
@@ -37,88 +43,50 @@ async function main() {
     },
   });
 
-  // ---------------------------------------------------------------------
-  // 3️⃣  Helper data for mock profiles
-  // ---------------------------------------------------------------------
-  const firstNames = [
-    "Aarav", "Diya", "Rohan", "Sneha", "Vihaan", "Isha", "Kunal", "Meera",
-    "Arjun", "Priya", "Sahil", "Tara", "Yash", "Ananya", "Dev", "Nisha",
-    "Riya", "Kartik", "Maya", "Aditi", "Jai", "Lakshmi", "Neil", "Pooja",
-    "Rhea", "Samir", "Zara", "Ishaan", "Shreya", "Kiran", "Vikram", "Lina",
-  ];
-
-  const citiesOrColleges = [
-    "Delhi", "Mumbai", "Kolkata", "Hyderabad", "Chennai",
-    "IIT Delhi", "IIT Bombay", "IIT Madras", "NIT Trichy", "BITS Pilani",
-    "Ahmedabad", "Pune", "Bengaluru", "Jaipur",
-  ];
-
-  const interestsPool = [
-    "music", "sports", "travel", "cooking", "photography",
-    "reading", "gaming", "movies", "art", "technology",
-  ];
-
-  function randomItem<T>(arr: T[]): T {
-    return arr[Math.floor(Math.random() * arr.length)];
-  }
-
-  // ---------------------------------------------------------------------
-  // 4️⃣  Generate 32 mock profiles (p01‑p32)
-  // ---------------------------------------------------------------------
+  // 32 candidate profiles
   const profiles: Prisma.ProfileCreateManyInput[] = [];
+
   for (let i = 1; i <= 32; i++) {
-    const id = `p${i.toString().padStart(2, "0")}`;
-    const name = firstNames[i - 1];
-    const age = 19 + Math.floor(Math.random() * 10); // 19‑28
-    const photoUrl = `https://picsum.photos/seed/${id}/600/800`;
-    const bio = `Hello! I am ${name}, a ${age}‑year‑old from ${randomItem(citiesOrColleges)}.`;
-    const city = randomItem(citiesOrColleges);
-    const interestsCount = 3 + Math.floor(Math.random() * 3); // 3‑5 interests
+    const id = `p${String(i).padStart(2, "0")}`;
+    const name = names[i - 1];
+    const age = 19 + Math.floor(Math.random() * 10);
+    const city = pick(locations);
+
     const interests: string[] = [];
-    while (interests.length < interestsCount) {
-      const int = randomItem(interestsPool);
-      if (!interests.includes(int)) interests.push(int);
+    const count = 3 + Math.floor(Math.random() * 3);
+    while (interests.length < count) {
+      const interest = pick(allInterests);
+      if (!interests.includes(interest)) interests.push(interest);
     }
+
     profiles.push({
       id,
       name,
       age,
-      photoUrl,
-      bio,
+      photoUrl: `https://picsum.photos/seed/${id}/600/800`,
+      bio: `Hey, I'm ${name}! ${age} years old, based in ${city}.`,
       city,
       interests: JSON.stringify(interests),
       isDemoUser: false,
     });
   }
 
-  // Bulk insert profiles (Prisma 6 supports createMany)
   await prisma.profile.createMany({ data: profiles });
 
-  // ---------------------------------------------------------------------
-  // 5️⃣  Insert six incoming likes (Swipe rows) for the demo user
-  // ---------------------------------------------------------------------
-  const likedIds = ["p04", "p09", "p15", "p21", "p26", "p30"];
-  const swipeCreates = likedIds.map((fromId) => ({
-    fromId,
-    toId: "me",
-    action: "LIKE",
-  }));
-  await prisma.swipe.createMany({ data: swipeCreates });
+  // pre-seed likes so the reviewer can trigger a match immediately
+  const likedBy = ["p04", "p09", "p15", "p21", "p26", "p30"];
+  await prisma.swipe.createMany({
+    data: likedBy.map((fromId) => ({ fromId, toId: "me", action: "LIKE" })),
+  });
 
-  // ---------------------------------------------------------------------
-  // 6️⃣  Summary output
-  // ---------------------------------------------------------------------
-  const totalProfiles = await prisma.profile.count();
-  const likedProfiles = await prisma.profile.findMany({
-    where: { id: { in: likedIds } },
+  const likerNames = await prisma.profile.findMany({
+    where: { id: { in: likedBy } },
     select: { name: true },
   });
-  console.log("🗂️  Seed completed!");
-  console.log(`Total profiles (including 'me'): ${totalProfiles}`);
-  console.log(
-    "Profiles that already liked you: " +
-      likedProfiles.map((p) => p.name).join(", ")
-  );
+
+  console.log("Seed done!");
+  console.log(`Total profiles: ${await prisma.profile.count()}`);
+  console.log(`Profiles that already liked you: ${likerNames.map((p) => p.name).join(", ")}`);
 }
 
 main()
@@ -126,6 +94,4 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => prisma.$disconnect());

@@ -12,19 +12,14 @@ interface DbProfile {
 }
 
 export function formatProfile(profile: DbProfile): FeedProfile {
-  let parsedInterests: string[] = [];
+  let interests: string[] = [];
+
   try {
     const parsed = JSON.parse(profile.interests);
-    if (Array.isArray(parsed)) {
-      parsedInterests = parsed.map(String);
-    } else {
-      parsedInterests = [String(parsed)];
-    }
+    interests = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
   } catch {
-    parsedInterests = profile.interests
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    // fall back to comma-separated string
+    interests = profile.interests.split(",").map((s) => s.trim()).filter(Boolean);
   }
 
   return {
@@ -34,6 +29,6 @@ export function formatProfile(profile: DbProfile): FeedProfile {
     photoUrl: profile.photoUrl,
     bio: profile.bio,
     city: profile.city,
-    interests: parsedInterests,
+    interests,
   };
 }

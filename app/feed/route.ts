@@ -7,10 +7,10 @@ export async function GET() {
   try {
     const profiles = await getFeed();
     return NextResponse.json({ profiles });
-  } catch (error: unknown) {
-    console.error("GET /feed error:", error);
+  } catch (err: unknown) {
+    console.error("GET /feed error:", err);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal Server Error" },
+      { error: err instanceof Error ? err.message : "Internal Server Error" },
       { status: 500 }
     );
   }
