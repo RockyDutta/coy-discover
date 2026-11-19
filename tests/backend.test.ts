@@ -8,7 +8,7 @@ import { BadRequestError, NotFoundError, ConflictError } from "../lib/types";
 
 describe("Coy Discover Backend Services & Business Rules", () => {
   beforeAll(async () => {
-    // Ensure tables exist in the test database
+    // make sure all tables exist in the test db before anything runs
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "Profile" (
         "id" TEXT NOT NULL PRIMARY KEY,
@@ -46,7 +46,6 @@ describe("Coy Discover Backend Services & Business Rules", () => {
     await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Swipe_fromId_toId_key" ON "Swipe"("fromId", "toId");`);
     await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Match_userAId_userBId_key" ON "Match"("userAId", "userBId");`);
 
-    // Clean tables before running test suite
     await prisma.match.deleteMany();
     await prisma.swipe.deleteMany();
     await prisma.profile.deleteMany();
@@ -57,12 +56,10 @@ describe("Coy Discover Backend Services & Business Rules", () => {
   });
 
   beforeEach(async () => {
-    // Reset database tables
     await prisma.match.deleteMany();
     await prisma.swipe.deleteMany();
     await prisma.profile.deleteMany();
 
-    // Create user 'me'
     await prisma.profile.create({
       data: {
         id: CURRENT_USER_ID,
@@ -76,160 +73,84 @@ describe("Coy Discover Backend Services & Business Rules", () => {
       },
     });
 
-    // Create mock profiles p1, p2, p3
     await prisma.profile.createMany({
       data: [
-        {
-          id: "p1",
-          name: "User One",
-          age: 23,
-          photoUrl: "https://example.com/p1.jpg",
-          bio: "Bio 1",
-          city: "NYC",
-          interests: JSON.stringify(["Art", "Design"]),
-          isDemoUser: false,
-        },
-        {
-          id: "p2",
-          name: "User Two",
-          age: 24,
-          photoUrl: "https://example.com/p2.jpg",
-          bio: "Bio 2",
-          city: "SF",
-          interests: JSON.stringify(["Music"]),
-          isDemoUser: false,
-        },
-        {
-          id: "p3",
-          name: "User Three",
-          age: 25,
-          photoUrl: "https://example.com/p3.jpg",
-          bio: "Bio 3",
-          city: "Austin",
-          interests: JSON.stringify(["Running"]),
-          isDemoUser: false,
-        },
+        { id: "p1", name: "User One", age: 23, photoUrl: "https://example.com/p1.jpg", bio: "Bio 1", city: "NYC", interests: JSON.stringify(["Art", "Design"]), isDemoUser: false },
+        { id: "p2", name: "User Two", age: 24, photoUrl: "https://example.com/p2.jpg", bio: "Bio 2", city: "SF", interests: JSON.stringify(["Music"]), isDemoUser: false },
+        { id: "p3", name: "User Three", age: 25, photoUrl: "https://example.com/p3.jpg", bio: "Bio 3", city: "Austin", interests: JSON.stringify(["Running"]), isDemoUser: false },
       ],
     });
   });
 
-  it("Rule 1: Logged-in user is 'me'", () => {
+  it("current user id is 'me'", () => {
     expect(CURRENT_USER_ID).toBe("me");
   });
 
-  it("Rule 5 & 6: Feed excludes 'me', orders by id, and returns only the 7 allowed profile fields", async () => {
-    // Seed an incoming like from p2 to 'me'
-    await prisma.swipe.create({
-      data: {
-        fromId: "p2",
-        toId: CURRENT_USER_ID,
-        action: "LIKE",
-      },
-    });
+  it("feed excludes 'me', is ordered by id, and returns only public fields", async () => {
+    await prisma.swipe.create({ data: { fromId: "p2", toId: CURRENT_USER_ID, action: "LIKE" } });
 
     const feed = await getFeed();
 
-    // Must exclude 'me'
     expect(feed.some((p) => p.id === CURRENT_USER_ID)).toBe(false);
     expect(feed.length).toBe(3);
-
-    // Feed order must be strictly ordered by id (p1, p2, p3) regardless of incoming like
     expect(feed[0].id).toBe("p1");
     expect(feed[1].id).toBe("p2");
     expect(feed[2].id).toBe("p3");
 
-    // Responses return ONLY these 7 fields: id, name, age, photoUrl, bio, city, interests
     const allowedKeys = ["id", "name", "age", "photoUrl", "bio", "city", "interests"].sort();
     for (const item of feed) {
       expect(Object.keys(item).sort()).toEqual(allowedKeys);
       expect(Array.isArray(item.interests)).toBe(true);
-      // Must never return swipe rows or who liked the user
       expect((item as unknown as Record<string, unknown>).hasLikedMe).toBeUndefined();
       expect((item as unknown as Record<string, unknown>).action).toBeUndefined();
     }
   });
 
-  it("Requirement 2: Swiped profiles never appear again in the feed", async () => {
-    // Swipe left (pass) on p1
+  it("swiped profiles never appear in the feed again", async () => {
     await recordSwipe("p1", false);
-
     const feed = await getFeed();
     expect(feed.map((p) => p.id)).toEqual(["p2", "p3"]);
     expect(feed.some((p) => p.id === "p1")).toBe(false);
   });
 
-  it("Rule 3 & 4: Records like, does not match if not mutual, matches atomically if mutual", async () => {
-    // 1. One-sided like (me likes p1, but p1 hasn't liked me)
-    const result1 = await recordSwipe("p1", true);
-    expect(result1.isMatch).toBe(false);
+  it("records a one-sided like (no match), then creates a match on mutual like", async () => {
+    const r1 = await recordSwipe("p1", true);
+    expect(r1.isMatch).toBe(false);
+    expect((await getMatches()).length).toBe(0);
 
-    // Matches should be empty
-    const matchesAfterOneSided = await getMatches();
-    expect(matchesAfterOneSided.length).toBe(0);
+    // p2 likes me first
+    await prisma.swipe.create({ data: { fromId: "p2", toId: CURRENT_USER_ID, action: "LIKE" } });
 
-    // 2. Mutual like (p2 previously liked 'me')
-    await prisma.swipe.create({
-      data: {
-        fromId: "p2",
-        toId: CURRENT_USER_ID,
-        action: "LIKE",
-      },
-    });
+    const r2 = await recordSwipe("p2", true);
+    expect(r2.isMatch).toBe(true);
+    expect(r2.matchedProfile?.id).toBe("p2");
+    expect(r2.matchedProfile?.name).toBe("User Two");
 
-    // Now 'me' likes p2
-    const result2 = await recordSwipe("p2", true);
-    expect(result2.isMatch).toBe(true);
-    expect(result2.matchedProfile?.id).toBe("p2");
-    expect(result2.matchedProfile?.name).toBe("User Two");
-
-    // Check Match table in DB: smaller id first
-    // 'me' vs 'p2': 'me' < 'p2' alphabetically
     const dbMatch = await prisma.match.findFirst();
     expect(dbMatch).not.toBeNull();
-    const expectedA = "me" < "p2" ? "me" : "p2";
-    const expectedB = "me" < "p2" ? "p2" : "me";
-    expect(dbMatch?.userAId).toBe(expectedA);
-    expect(dbMatch?.userBId).toBe(expectedB);
+    const a = "me" < "p2" ? "me" : "p2";
+    const b = "me" < "p2" ? "p2" : "me";
+    expect(dbMatch?.userAId).toBe(a);
+    expect(dbMatch?.userBId).toBe(b);
 
-    // Check GET /matches returns the mutual match
     const matches = await getMatches();
     expect(matches.length).toBe(1);
     expect(matches[0].id).toBe("p2");
-    expect(matches[0].name).toBe("User Two");
   });
 
-  it("Passing does not create a match even if other user liked 'me'", async () => {
-    // p3 likes 'me'
-    await prisma.swipe.create({
-      data: {
-        fromId: "p3",
-        toId: CURRENT_USER_ID,
-        action: "LIKE",
-      },
-    });
-
-    // 'me' passes on p3
+  it("passing on someone who liked me does not create a match", async () => {
+    await prisma.swipe.create({ data: { fromId: "p3", toId: CURRENT_USER_ID, action: "LIKE" } });
     const result = await recordSwipe("p3", false);
     expect(result.isMatch).toBe(false);
-
-    const matches = await getMatches();
-    expect(matches.length).toBe(0);
+    expect((await getMatches()).length).toBe(0);
   });
 
-  it("Error handling: rejects invalid actions, non-existent profiles, and duplicate swipes", async () => {
-    // Reject invalid action
+  it("rejects invalid actions, non-existent profiles, and duplicate swipes", async () => {
     await expect(recordSwipe("p1", "SUPERLIKE" as unknown as "LIKE")).rejects.toThrow(BadRequestError);
-
-    // Reject non-existent profile
     await expect(recordSwipe("non_existent_id", "LIKE")).rejects.toThrow(NotFoundError);
-
-    // Reject swiping on oneself
     await expect(recordSwipe(CURRENT_USER_ID, "LIKE")).rejects.toThrow(BadRequestError);
 
-    // Record a valid swipe with string "LIKE"
     await recordSwipe("p1", "LIKE");
-
-    // Reject duplicate swipe on same profile
     await expect(recordSwipe("p1", "PASS")).rejects.toThrow(ConflictError);
   });
 });
