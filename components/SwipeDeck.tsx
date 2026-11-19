@@ -11,6 +11,7 @@ export default function SwipeDeck() {
   const [profiles, setProfiles] = useState<FeedProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSwiping, setIsSwiping] = useState(false);
+  const [exitDirection, setExitDirection] = useState<"left" | "right" | null>(null);
   const [matchedProfile, setMatchedProfile] = useState<FeedProfile | null>(null);
 
   useEffect(() => {
@@ -38,24 +39,30 @@ export default function SwipeDeck() {
 
   const handleSwipe = async (action: "LIKE" | "PASS") => {
     // Ignore extra taps while a request is running or if no profiles left
-    if (isSwiping || profiles.length === 0) return;
+    if (isSwiping || profiles.length === 0 || exitDirection) return;
 
     const currentProfile = profiles[0];
     setIsSwiping(true);
+    setExitDirection(action === "LIKE" ? "right" : "left");
 
     try {
       const res = await postSwipe(currentProfile.id, action);
 
-      // Only after it succeeds removes that profile from the list and shows the next one
-      setProfiles((prev) => prev.slice(1));
+      // Brief delay for exit animation before removing card from deck
+      setTimeout(() => {
+        setProfiles((prev) => prev.slice(1));
+        setExitDirection(null);
+        setIsSwiping(false);
 
-      // Show modal only when postSwipe returns isMatch true. Show nothing special when isMatch is false.
-      if (res.isMatch) {
-        setMatchedProfile(currentProfile);
-      }
+        // Show modal only when postSwipe returns isMatch true
+        if (res.isMatch) {
+          setMatchedProfile(currentProfile);
+        }
+      }, 220);
     } catch (error) {
       console.error("Swipe failed:", error);
-    } finally {
+      // Bring card back to center if request fails
+      setExitDirection(null);
       setIsSwiping(false);
     }
   };
@@ -75,7 +82,6 @@ export default function SwipeDeck() {
     return (
       <>
         <EmptyState />
-        {/* Match modal if last swipe was a match */}
         <MatchModal
           profile={matchedProfile}
           onClose={() => setMatchedProfile(null)}
@@ -87,16 +93,22 @@ export default function SwipeDeck() {
   const currentProfile = profiles[0];
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center p-4">
-      {/* Exactly ONE profile card at a time */}
-      <ProfileCard profile={currentProfile} />
+    <div className="relative flex flex-1 flex-col items-center justify-center p-4">
+      {/* Exactly ONE profile card at a time with touch/mouse horizontal drag */}
+      <ProfileCard
+        key={currentProfile.id}
+        profile={currentProfile}
+        onSwipe={handleSwipe}
+        exitDirection={exitDirection}
+        disabled={isSwiping}
+      />
 
-      {/* Like and Pass buttons shown on desktop widths (md and above) */}
-      <div className="hidden md:flex items-center justify-center gap-8 mt-5">
+      {/* Action buttons (Pass and Like) visible for quick taps on mobile and desktop */}
+      <div className="flex items-center justify-center gap-8 mt-5 z-10">
         {/* Pass Button */}
         <button
           onClick={() => handleSwipe("PASS")}
-          disabled={isSwiping}
+          disabled={isSwiping || Boolean(exitDirection)}
           aria-label="Pass"
           className="group flex h-14 w-14 items-center justify-center rounded-full border border-neutral-800 bg-neutral-900 text-rose-500 shadow-xl transition-all duration-150 hover:scale-110 hover:border-rose-500/50 hover:bg-rose-500/10 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -113,7 +125,7 @@ export default function SwipeDeck() {
         {/* Like Button */}
         <button
           onClick={() => handleSwipe("LIKE")}
-          disabled={isSwiping}
+          disabled={isSwiping || Boolean(exitDirection)}
           aria-label="Like"
           className="group flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-pink-600 to-rose-500 text-white shadow-xl shadow-pink-500/30 transition-all duration-150 hover:scale-110 hover:shadow-pink-500/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >

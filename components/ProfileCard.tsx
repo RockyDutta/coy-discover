@@ -1,15 +1,61 @@
 /* eslint-disable @next/next/no-img-element */
+"use client";
+
+import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { FeedProfile } from "@/lib/types";
 
 interface ProfileCardProps {
   profile: FeedProfile;
+  onSwipe?: (action: "LIKE" | "PASS") => void;
+  exitDirection?: "left" | "right" | null;
+  disabled?: boolean;
 }
 
-export default function ProfileCard({ profile }: ProfileCardProps) {
+export default function ProfileCard({
+  profile,
+  onSwipe,
+  exitDirection,
+  disabled = false,
+}: ProfileCardProps) {
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-16, 16]);
+  const likeOpacity = useTransform(x, [20, 90], [0, 1]);
+  const passOpacity = useTransform(x, [-20, -90], [0, 1]);
+
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    if (disabled || exitDirection || !onSwipe) return;
+
+    const threshold = 100;
+    const velocityThreshold = 400;
+
+    if (info.offset.x > threshold || info.velocity.x > velocityThreshold) {
+      onSwipe("LIKE");
+    } else if (info.offset.x < -threshold || info.velocity.x < -velocityThreshold) {
+      onSwipe("PASS");
+    }
+  };
+
   return (
-    <div className="relative flex h-[540px] w-full max-w-sm flex-col overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900 shadow-2xl select-none">
+    <motion.div
+      style={{
+        x: exitDirection ? undefined : x,
+        rotate: exitDirection ? undefined : rotate,
+      }}
+      drag={disabled || exitDirection ? false : "x"}
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.7}
+      onDragEnd={handleDragEnd}
+      animate={
+        exitDirection === "right"
+          ? { x: 500, opacity: 0, rotate: 25, transition: { duration: 0.25 } }
+          : exitDirection === "left"
+          ? { x: -500, opacity: 0, rotate: -25, transition: { duration: 0.25 } }
+          : { x: 0, opacity: 1, rotate: 0 }
+      }
+      className="relative flex h-[520px] w-full max-w-sm flex-col overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900 shadow-2xl select-none cursor-grab active:cursor-grabbing touch-pan-y"
+    >
       {/* Profile Photo */}
-      <div className="relative h-full w-full bg-neutral-950">
+      <div className="relative h-full w-full bg-neutral-950 overflow-hidden">
         <img
           src={profile.photoUrl}
           alt={profile.name}
@@ -20,6 +66,22 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
 
         {/* Gradient Overlay for text contrast */}
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/40 to-transparent pointer-events-none" />
+
+        {/* Like Stamp Indicator */}
+        <motion.div
+          style={{ opacity: exitDirection === "right" ? 1 : likeOpacity }}
+          className="absolute top-6 left-6 z-20 pointer-events-none rounded-xl border-4 border-emerald-400 px-4 py-1.5 font-black text-2xl uppercase tracking-wider text-emerald-400 -rotate-12 bg-emerald-950/60 backdrop-blur-sm shadow-lg"
+        >
+          LIKE
+        </motion.div>
+
+        {/* Pass Stamp Indicator */}
+        <motion.div
+          style={{ opacity: exitDirection === "left" ? 1 : passOpacity }}
+          className="absolute top-6 right-6 z-20 pointer-events-none rounded-xl border-4 border-rose-500 px-4 py-1.5 font-black text-2xl uppercase tracking-wider text-rose-500 rotate-12 bg-rose-950/60 backdrop-blur-sm shadow-lg"
+        >
+          PASS
+        </motion.div>
 
         {/* Profile Info Overlay at bottom */}
         <div className="absolute bottom-0 inset-x-0 p-5 text-white pointer-events-none">
@@ -58,13 +120,13 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
           </div>
 
           {/* Short Bio */}
-          <p className="mt-2.5 text-xs leading-relaxed text-neutral-200 line-clamp-3 drop-shadow">
+          <p className="mt-2 text-xs leading-relaxed text-neutral-200 line-clamp-3 drop-shadow">
             {profile.bio}
           </p>
 
           {/* Interests Chips */}
           {profile.interests && profile.interests.length > 0 && (
-            <div className="mt-3.5 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {profile.interests.map((interest, idx) => (
                 <span
                   key={idx}
@@ -77,6 +139,6 @@ export default function ProfileCard({ profile }: ProfileCardProps) {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
