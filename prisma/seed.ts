@@ -8,6 +8,41 @@ const names = [
   "Rhea", "Samir", "Zara", "Ishaan", "Shreya", "Kiran", "Vikram", "Lina",
 ];
 
+const portraits = [
+  "photo-1539571696357-5a69c17a67c6",
+  "photo-1494790108377-be9c29b29330",
+  "photo-1507003211169-0a1dd7228f2d",
+  "photo-1534528741775-53994a69daeb",
+  "photo-1500648767791-00dcc994a43e",
+  "photo-1517841905240-472988babdf9",
+  "photo-1506794778202-cad84cf45f1d",
+  "photo-1524504388940-b1c1722653e1",
+  "photo-1519085360753-af0119f7cbe7",
+  "photo-1544005313-94ddf0286df2",
+  "photo-1522075469751-3a6694fb2f61",
+  "photo-1529626455594-4ff0802cfb7e",
+  "photo-1492562080023-ab3db95bfbce",
+  "photo-1488426862026-3ee34a7d66df",
+  "photo-1480429370139-e0132c086e2a",
+  "photo-1573496359142-b8d87734a5a2",
+  "photo-1508214751196-bcfd4ca60f91",
+  "photo-1501196354995-cbb51c65aaea",
+  "photo-1534751516642-a1714f5a5223",
+  "photo-1517841905240-472988babdf9",
+  "photo-1513956589380-bad6acb9b9d4",
+  "photo-1502823403499-6ccfcf4fb453",
+  "photo-1463453091185-61582044d556",
+  "photo-1531746020798-e6953c6e8e04",
+  "photo-1492106087820-71aa130ba25e",
+  "photo-1539571696357-5a69c17a67c6",
+  "photo-1524504388940-b1c1722653e1",
+  "photo-1507003211169-0a1dd7228f2d",
+  "photo-1494790108377-be9c29b29330",
+  "photo-1500648767791-00dcc994a43e",
+  "photo-1506794778202-cad84cf45f1d",
+  "photo-1534528741775-53994a69daeb",
+];
+
 const locations = [
   "Delhi", "Mumbai", "Kolkata", "Hyderabad", "Chennai",
   "IIT Delhi", "IIT Bombay", "IIT Madras", "NIT Trichy", "BITS Pilani",
@@ -24,7 +59,6 @@ function pick<T>(arr: T[]): T {
 }
 
 async function main() {
-  // wipe existing data so the seed is idempotent
   await prisma.swipe.deleteMany();
   await prisma.match.deleteMany();
   await prisma.profile.deleteMany();
@@ -35,7 +69,7 @@ async function main() {
       id: "me",
       name: "Rocky",
       age: 25,
-      photoUrl: "https://picsum.photos/seed/me/600/800",
+      photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=800&auto=format&fit=crop&q=80",
       bio: "A passionate intern learning the ropes of product discovery.",
       city: "Bengaluru",
       interests: JSON.stringify(["coding", "music", "travel"]),
@@ -43,7 +77,6 @@ async function main() {
     },
   });
 
-  // 32 candidate profiles
   const profiles: Prisma.ProfileCreateManyInput[] = [];
 
   for (let i = 1; i <= 32; i++) {
@@ -51,6 +84,8 @@ async function main() {
     const name = names[i - 1];
     const age = 19 + Math.floor(Math.random() * 10);
     const city = pick(locations);
+    const photoId = portraits[i - 1];
+    const photoUrl = `https://images.unsplash.com/${photoId}?w=600&h=800&auto=format&fit=crop&q=80`;
 
     const interests: string[] = [];
     const count = 3 + Math.floor(Math.random() * 3);
@@ -63,7 +98,7 @@ async function main() {
       id,
       name,
       age,
-      photoUrl: `https://picsum.photos/seed/${id}/600/800`,
+      photoUrl,
       bio: `Hey, I'm ${name}! ${age} years old, based in ${city}.`,
       city,
       interests: JSON.stringify(interests),
@@ -73,7 +108,6 @@ async function main() {
 
   await prisma.profile.createMany({ data: profiles });
 
-  // pre-seed likes so the reviewer can trigger a match immediately
   const likedBy = ["p04", "p09", "p15", "p21", "p26", "p30"];
   await prisma.swipe.createMany({
     data: likedBy.map((fromId) => ({ fromId, toId: "me", action: "LIKE" })),
